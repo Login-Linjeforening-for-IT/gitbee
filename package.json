@@ -1,0 +1,27 @@
+{
+  "name": "gitbee",
+  "version": "1.0.0",
+  "description": "Github Gitlab Sync",
+  "homepage": "https://github.com/Login-Linjeforening-for-IT/gitbee#readme",
+  "bugs": {
+    "url": "https://github.com/Login-Linjeforening-for-IT/gitbee/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Login-Linjeforening-for-IT/gitbee.git"
+  },
+  "license": "ISC",
+  "author": "",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "start": "node src/index.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^24.7.0",
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "dotenv": "^17.2.3"
+  }
+}
