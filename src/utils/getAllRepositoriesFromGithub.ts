@@ -9,14 +9,6 @@ export async function getAllRepositoriesFromGithub(username: string = "username"
         const url = new URL(GITHUB_API)
         url.searchParams.append('type', 'public')
         url.searchParams.append('sort', 'updated')
-        console.log("sending request to github", url.href, {
-            headers: {
-                "Accept": "application/vnd.github+json",
-                "User-Agent": `beegit/${version}`,
-                "Authorization": `Bearer ${config.tokens.github}`
-            }
-        })
-
         const res = await fetch(url.href, {
             headers: {
                 "Accept": "application/vnd.github+json",

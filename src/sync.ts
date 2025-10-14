@@ -2,9 +2,16 @@ import config from './constants.ts'
 import { getAllRepositoriesFromGithub } from './utils/getAllRepositoriesFromGithub.ts'
 import { getAllRepositoriesFromGitlab } from './utils/getAllRepositoriesFromGitlab.ts'
 
+let lastUpdateGithub = new Map<string, string>()
+let lastUpdateGitlab = new Map<string, string>()
+
 export default async function sync() {
     const github = await getAllRepositoriesFromGithub(config.name)
     const githubParsed = github.map((repo: GithubRepository) => ({name: repo.name, updated: repo.pushed_at}))
+    if (!Array.isArray(githubParsed) || !githubParsed.length) {
+        return "Failed to fetch repositories from Github"
+    }
+
     // [
     //     { name: 'gitbee', updated: '2025-10-09T02:59:23Z' },
     //     { name: 'beehive', updated: '2025-10-08T18:46:25Z' },
@@ -22,6 +29,43 @@ export default async function sync() {
     // ]
     const gitlab = getAllRepositoriesFromGitlab(config.group)
     const gitlabParsed = (await gitlab).map((repo: GitlabRepository) => ({name: repo.name, updated: repo.updated_at}))
+    if (!Array.isArray(githubParsed) || !githubParsed.length) {
+        return "Failed to fetch repositories from Gitlab"
+    }
+
+    const lastFromGithub = lastUpdateGithub.get(githubParsed[0]!.name)
+    const mostRecentUpdateFromGithub = githubParsed[0]!.updated 
+    const lastFromGitlab = lastUpdateGitlab.get(gitlabParsed[0]!.name)
+    const mostRecentUpdateFromGitlab = gitlabParsed[0]!.updated
+
+    if (lastFromGithub === mostRecentUpdateFromGithub && lastFromGitlab === mostRecentUpdateFromGitlab) {
+        return "No updates to sync"
+    }
+
+    if (lastFromGithub !== mostRecentUpdateFromGithub) {
+        console.log("Updating github")
+        console.log(lastUpdateGithub)
+        // sync github
+        // clone repo to /projects or clones folder if not already cloned
+        // (just try cd and handle error as not already cloned)
+        // enter repo
+        // pull with rebase from gitlab
+        // push to gitlab
+        // if merge conflict, send error in #git_log in discord
+    }
+
+    if (lastFromGitlab !== mostRecentUpdateFromGitlab) {
+        console.log("Updating gitlab")
+        console.log(lastUpdateGitlab)
+        // sync gitlab
+        // clone repo to /projects or clones folder if not already cloned
+        // (just try cd and handle error as not already cloned)
+        // enter repo
+        // pull with rebase from github
+        // push to github
+        // if merge conflict, send error in #git_log in discord
+    }
+
     // [
     //     { name: 'gatherbee', updated: '2025-10-03T14:08:44.004Z' },
     //     { name: 'BeeFormed', updated: '2025-10-08T18:52:26.656Z' },
