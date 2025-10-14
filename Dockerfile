@@ -4,6 +4,9 @@ FROM node:lts-alpine
 # Workdir required for tailwind to compile
 WORKDIR /app
 
+# Install git
+RUN apk add --no-cache git
+
 # Copies package.json and package-lock.json
 COPY package*.json ./
 
@@ -14,4 +17,4 @@ RUN npm install
 COPY . .
 
 # Starts the application
-CMD npm start
+CMD ["npm", "start"]
