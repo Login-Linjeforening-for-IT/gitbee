@@ -12,31 +12,23 @@ const execAsync = promisify(exec)
 let lastUpdateGithub = new Map<string, string>()
 let lastUpdateGitlab = new Map<string, string>()
 
+// sample data structure
+// 
+// [
+//     { name: 'gitbee', updated: '2025-10-09T02:59:23Z' },
+//     ...
+// ]
+
 export default async function sync() {
-    // [
-    //     { name: 'gitbee', updated: '2025-10-09T02:59:23Z' },
-    //     { name: 'beehive', updated: '2025-10-08T18:46:25Z' },
-    //     { name: 'uibee', updated: '2025-10-08T18:10:43Z' },
-    //     { name: 'tekkom-bot', updated: '2025-10-06T18:53:01Z' },
-    //     { name: 'default', updated: '2025-10-04T08:50:19Z' },
-    //     { name: 'queenbee', updated: '2025-09-22T01:51:54Z' },
-    //     { name: 'studentbee', updated: '2025-09-09T11:46:24Z' },
-    //     { name: 'workerbee', updated: '2025-10-08T18:57:07Z' },
-    //     { name: 'nucleus', updated: '2025-09-11T10:45:44Z' },
-    //     { name: 'nucleus-notifications', updated: '2025-09-09T12:07:40Z' },
-    //     { name: 'dizambee', updated: '2025-09-09T11:58:34Z' },
-    //     { name: 'app-api', updated: '2025-09-09T11:39:27Z' },
-    //     { name: 'beehive-database', updated: '2025-04-05T19:56:19Z' }
-    // ]
 
     const github = await getAllRepositoriesFromGithub(config.name)
-    const githubParsed = github.map((repo: GithubRepository) => ({name: repo.name, updated: repo.pushed_at}))
+    const githubParsed = github.map((repo: GithubRepository) => ({ name: repo.name, updated: repo.pushed_at }))
     if (!Array.isArray(githubParsed) || !githubParsed.length) {
         return 'Failed to fetch repositories from Github'
     }
 
     const gitlab = getAllRepositoriesFromGitlab(config.group)
-    const gitlabParsed = (await gitlab).map((repo: GitlabRepository) => ({name: repo.name, updated: repo.updated_at}))
+    const gitlabParsed = (await gitlab).map((repo: GitlabRepository) => ({ name: repo.name, updated: repo.updated_at }))
     if (!Array.isArray(gitlabParsed) || !gitlabParsed.length) {
         return 'Failed to fetch repositories from Gitlab'
     }
@@ -91,6 +83,7 @@ async function syncRepo(repoName: string, source: 'github' | 'gitlab') {
         if (!remotes.includes('github')) {
             await execAsync(`git remote add github ${githubUrl}`, { cwd: repoPath })
         }
+
         if (!remotes.includes('gitlab')) {
             await execAsync(`git remote add gitlab ${gitlabUrl}`, { cwd: repoPath })
         }
@@ -106,6 +99,6 @@ async function syncRepo(repoName: string, source: 'github' | 'gitlab') {
         }
     } catch (error) {
         console.error(`Failed to sync ${repoName} from ${source}:`, error)
-        discordAlert('Merge conflict',`Merge conflict in ${repoName} from ${source}, please resolve manually.`)
+        discordAlert('Merge conflict', `Merge conflict in ${repoName} from ${source}, please resolve manually.`)
     }
 }
