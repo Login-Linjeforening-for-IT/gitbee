@@ -1,0 +1,8 @@
+services:
+  gitbee:
+    container_name: gitbee
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - .env
