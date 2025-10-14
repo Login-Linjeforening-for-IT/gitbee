@@ -4,7 +4,8 @@ dotenv.config()
 
 const requiredEnvironmentVariables = [
     'GITHUB_API_TOKEN',
-    'GITLAB_API_TOKEN'
+    'GITLAB_API_TOKEN',
+    'WEBHOOK_URL'
 ]
 
 const missingVariables = requiredEnvironmentVariables.filter(
@@ -27,14 +28,16 @@ const env = Object.fromEntries(
 const config = {
     url: {
         github: 'https://api.github.com',
-        gitlab: 'https://gitlab.login.no/api/v4'
+        gitlab: 'https://gitlab.login.no/api/v4',
+        webhook: env['WEBHOOK_URL']
     },
     tokens: {
         github: env['GITHUB_API_TOKEN'],
         gitlab: env['GITLAB_API_TOKEN']
     },
     name: 'Login-Linjeforening-for-IT',
-    group: 'tekkom'
+    group: 'tekkom',
+    underGroup: 'dev'
 }
 
 export default config
