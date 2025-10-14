@@ -71,8 +71,8 @@ export default async function sync() {
 async function syncRepo(repoName: string, source: 'github' | 'gitlab') {
     const clonesDir = '/projects'
     const repoPath = path.join(clonesDir, repoName)
-    const githubUrl = `https://github.com/${config.name}/${repoName}.git`
-    const gitlabUrl = `https://gitlab.login.no/${config.group}/${config.underGroup}/${repoName}.git`
+    const githubUrl = `git@github.com:${config.name}/${repoName}.git`
+    const gitlabUrl = `git@gitlab.login.no:${config.group}/${config.underGroup}/${repoName}.git`
 
     // clone if not exist
     if (!fs.existsSync(repoPath)) {
