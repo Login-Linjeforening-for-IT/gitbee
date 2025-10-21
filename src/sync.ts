@@ -63,8 +63,12 @@ export default async function sync() {
 async function syncRepo(repoName: string, source: 'github' | 'gitlab') {
     const clonesDir = '/projects'
     const repoPath = path.join(clonesDir, repoName)
-    const githubUrl = `git@github.com:${config.name}/${repoName}.git`
-    const gitlabUrl = `git@gitlab.login.no:${config.group}/${config.underGroup}/${repoName}.git`
+    // Get PATs from environment variables
+    const githubPAT = config.tokens.github
+    const gitlabPAT = config.tokens.gitlab
+    // URLs with PATs for push
+    const githubUrl = `https://${githubPAT}@github.com/${config.name}/${repoName}.git`
+    const gitlabUrl = `https://oauth2:${gitlabPAT}@gitlab.login.no/${config.group}/${config.underGroup}/${repoName}.git`
 
     // clone if not exist
     if (!fs.existsSync(repoPath)) {
@@ -93,8 +97,14 @@ async function syncRepo(repoName: string, source: 'github' | 'gitlab') {
             // pull from source with rebase
             await execAsync(`git pull ${source} ${branch} --rebase`, { cwd: repoPath })
 
-            // push to target
+            // push to target with PAT
             const target = source === 'github' ? 'gitlab' : 'github'
+            if (target === 'github' && githubPAT) {
+                await execAsync(`git remote set-url github ${githubUrl}`, { cwd: repoPath })
+            }
+            if (target === 'gitlab' && gitlabPAT) {
+                await execAsync(`git remote set-url gitlab ${gitlabUrl}`, { cwd: repoPath })
+            }
             await execAsync(`git push ${target} ${branch}`, { cwd: repoPath })
         }
     } catch (error) {
