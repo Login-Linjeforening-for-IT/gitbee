@@ -19,14 +19,12 @@ let lastUpdateGitlab = new Map<string, string>()
 // ]
 
 export default async function sync() {
-    // Fetch repositories from Github
     const github = await getAllRepositoriesFromGithub(config.name)
     const githubParsed = github.map((repo: GithubRepository) => ({ name: repo.name, updated: repo.pushed_at }))
     if (!Array.isArray(githubParsed) || !githubParsed.length) {
         return 'Failed to fetch repositories from Github'
     }
 
-    // Fetch repositories from Gitlab
     const gitlab = getAllRepositoriesFromGitlab(config.group)
     const gitlabParsed = (await gitlab).map((repo: GitlabRepository) => ({ name: repo.name, updated: repo.updated_at }))
     if (!Array.isArray(gitlabParsed) || !gitlabParsed.length) {
@@ -37,7 +35,6 @@ export default async function sync() {
 
     let hasUpdates = false
 
-    // Sync Github repositories
     for (const repo of githubParsed) {
         if (config.blacklist && config.blacklist.includes(repo.name)) {
             console.log(`Skipping blacklisted repo ${repo.name} from github`)
@@ -52,7 +49,6 @@ export default async function sync() {
         }
     }
 
-    // Sync Gitlab repositories
     for (const repo of gitlabParsed) {
         if (config.blacklist && config.blacklist.includes(repo.name)) {
             console.log(`Skipping blacklisted repo ${repo.name} from gitlab`)
