@@ -12,21 +12,21 @@ const execAsync = promisify(exec)
 let lastUpdateGithub = new Map<string, string>()
 let lastUpdateGitlab = new Map<string, string>()
 
-// sample data structure
-// 
+// Sample data structure for repositories
 // [
 //     { name: 'gitbee', updated: '2025-10-09T02:59:23Z' },
 //     ...
 // ]
 
 export default async function sync() {
-
+    // Fetch repositories from Github
     const github = await getAllRepositoriesFromGithub(config.name)
     const githubParsed = github.map((repo: GithubRepository) => ({ name: repo.name, updated: repo.pushed_at }))
     if (!Array.isArray(githubParsed) || !githubParsed.length) {
         return 'Failed to fetch repositories from Github'
     }
 
+    // Fetch repositories from Gitlab
     const gitlab = getAllRepositoriesFromGitlab(config.group)
     const gitlabParsed = (await gitlab).map((repo: GitlabRepository) => ({ name: repo.name, updated: repo.updated_at }))
     if (!Array.isArray(gitlabParsed) || !gitlabParsed.length) {
@@ -37,6 +37,7 @@ export default async function sync() {
 
     let hasUpdates = false
 
+    // Sync Github repositories
     for (const repo of githubParsed) {
         if (config.blacklist && config.blacklist.includes(repo.name)) {
             console.log(`Skipping blacklisted repo ${repo.name} from github`)
@@ -51,6 +52,7 @@ export default async function sync() {
         }
     }
 
+    // Sync Gitlab repositories
     for (const repo of gitlabParsed) {
         if (config.blacklist && config.blacklist.includes(repo.name)) {
             console.log(`Skipping blacklisted repo ${repo.name} from gitlab`)
@@ -71,14 +73,16 @@ export default async function sync() {
 async function syncRepo(repoName: string, source: 'github' | 'gitlab') {
     const clonesDir = '/projects'
     const repoPath = path.join(clonesDir, repoName)
-    // Get PATs
+
+    // Get Personal Access Tokens
     const githubPAT = config.tokens.github
     const gitlabPAT = config.tokens.gitlab
-    // URLs
+
+    // Construct remote URLs
     const githubUrl = `https://${githubPAT}@github.com/${config.name}/${repoName}.git`
     const gitlabUrl = `https://oauth2:${gitlabPAT}@gitlab.login.no/${config.group}/${config.underGroup}/${repoName}.git`
 
-    // clone if not exist
+    // Clone repo if it doesn't exist
     if (!fs.existsSync(repoPath)) {
         const cloneUrl = source === 'github' ? githubUrl : gitlabUrl
         try {
@@ -90,40 +94,52 @@ async function syncRepo(repoName: string, source: 'github' | 'gitlab') {
     }
 
     try {
-        // add remotes if not exist
+        // Add remotes if missing
         const { stdout: remotes } = await execAsync('git remote', { cwd: repoPath })
         if (!remotes.includes('github')) {
             await execAsync(`git remote add github ${githubUrl}`, { cwd: repoPath })
         }
-
         if (!remotes.includes('gitlab')) {
             await execAsync(`git remote add gitlab ${gitlabUrl}`, { cwd: repoPath })
         }
 
         const branches = ['main', 'dev']
         for (const branch of branches) {
-                // Verify if branch exists on remote before pulling and pushing
-                try {
-                    const remoteRefs = await execAsync(`git ls-remote --heads ${source} ${branch}`, { cwd: repoPath });
-                    if (remoteRefs.stdout && remoteRefs.stdout.includes(branch)) {
-                        // pull from source with rebase
-                        await execAsync(`git pull ${source} ${branch} --rebase`, { cwd: repoPath });
+            // Check if branch exists on both remotes before syncing
+            try {
+                const githubRefs = await execAsync(`git ls-remote --heads github ${branch}`, { cwd: repoPath });
+                const gitlabRefs = await execAsync(`git ls-remote --heads gitlab ${branch}`, { cwd: repoPath });
+                const sourceHasBranch = source === 'github' ? githubRefs.stdout.includes(branch) : gitlabRefs.stdout.includes(branch);
+                const target = source === 'github' ? 'gitlab' : 'github';
+                const targetHasBranch = target === 'github' ? githubRefs.stdout.includes(branch) : gitlabRefs.stdout.includes(branch);
 
-                        // push to target
-                        const target = source === 'github' ? 'gitlab' : 'github';
-                        if (target === 'github' && githubPAT) {
-                            await execAsync(`git remote set-url github ${githubUrl}`, { cwd: repoPath });
-                        }
-                        if (target === 'gitlab' && gitlabPAT) {
-                            await execAsync(`git remote set-url gitlab ${gitlabUrl}`, { cwd: repoPath });
-                        }
-                        await execAsync(`git push ${target} ${branch}`, { cwd: repoPath });
-                    } else {
-                        console.log(`Branch ${branch} does not exist on remote ${source}, skipping pull and push.`);
+                if (sourceHasBranch && targetHasBranch) {
+                    // Pull from source with rebase
+                    await execAsync(`git pull ${source} ${branch} --rebase`, { cwd: repoPath });
+
+                    // Ensure branch exists locally before pushing
+                    const { stdout: localBranches } = await execAsync('git branch', { cwd: repoPath });
+                    const branchList = localBranches.split('\n').map(b => b.trim());
+                    const currentBranch = branchList.find(b => b.startsWith('*'))?.replace('*', '').trim();
+                    // Only fetch if branch is not present locally AND not checked out
+                    if (!branchList.includes(branch) && currentBranch !== branch) {
+                        await execAsync(`git fetch ${source} ${branch}:${branch}`, { cwd: repoPath });
                     }
-                } catch (err) {
-                    console.error(`Error verifying branch ${branch} on remote ${source}:`, err);
+
+                    // Push to target remote
+                    if (target === 'github' && githubPAT) {
+                        await execAsync(`git remote set-url github ${githubUrl}`, { cwd: repoPath });
+                    }
+                    if (target === 'gitlab' && gitlabPAT) {
+                        await execAsync(`git remote set-url gitlab ${gitlabUrl}`, { cwd: repoPath });
+                    }
+                    await execAsync(`git push ${target} ${branch}`, { cwd: repoPath });
+                } else {
+                    console.log(`Branch ${branch} does not exist on remote ${source}, skipping pull and push.`);
                 }
+            } catch (err) {
+                console.error(`Error verifying branch ${branch} on remotes:`, err);
+            }
         }
     } catch (error) {
         console.error(`Failed to sync ${repoName} from ${source}:`, error)
