@@ -7,6 +7,9 @@ WORKDIR /app
 # Install git
 RUN apk add --no-cache git
 
+# Install OpenSSH client
+RUN apk add --no-cache openssh
+
 # Copies package.json and package-lock.json
 COPY package*.json ./
 
