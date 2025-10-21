@@ -9,7 +9,9 @@ export default function gitSync() {
             console.log('Sync already running, skipping...')
             return
         }
+
         isRunning = true
+
         try {
             await sync()
         } finally {

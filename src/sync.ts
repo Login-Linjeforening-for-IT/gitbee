@@ -38,8 +38,9 @@ export default async function sync() {
     for (const repo of githubParsed) {
         if (config.blacklist && config.blacklist.includes(repo.name)) {
             console.log(`Skipping blacklisted repo ${repo.name} from github`)
-            continue;
+            continue
         }
+
         const last = lastUpdateGithub.get(repo.name)
         if (!last || last !== repo.updated) {
             console.log(`Updating ${repo.name} from github`)
@@ -52,8 +53,9 @@ export default async function sync() {
     for (const repo of gitlabParsed) {
         if (config.blacklist && config.blacklist.includes(repo.name)) {
             console.log(`Skipping blacklisted repo ${repo.name} from gitlab`)
-            continue;
+            continue
         }
+
         const last = lastUpdateGitlab.get(repo.name)
         if (!last || last !== repo.updated) {
             console.log(`Updating ${repo.name} from gitlab`)
@@ -69,7 +71,6 @@ export default async function sync() {
 async function syncRepo(repoName: string, source: 'github' | 'gitlab') {
     const clonesDir = '/projects'
     const repoPath = path.join(clonesDir, repoName)
-
     const githubUrl = `https://${config.tokens.github}@github.com/${config.name}/${repoName}.git`
     const gitlabUrl = `https://oauth2:${config.tokens.gitlab}@gitlab.login.no/${config.group}/${config.underGroup}/${repoName}.git`
 
@@ -84,11 +85,11 @@ async function syncRepo(repoName: string, source: 'github' | 'gitlab') {
         }
     }
 
-    // Add remotes if missing
     const { stdout: remotes } = await execAsync('git remote', { cwd: repoPath })
     if (!remotes.includes('github')) {
         await execAsync(`git remote add github ${githubUrl}`, { cwd: repoPath })
     }
+
     if (!remotes.includes('gitlab')) {
         await execAsync(`git remote add gitlab ${gitlabUrl}`, { cwd: repoPath })
     }
