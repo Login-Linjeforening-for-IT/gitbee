@@ -37,7 +37,10 @@ const config = {
     },
     name: 'Login-Linjeforening-for-IT',
     group: 'tekkom',
-    underGroup: 'dev'
+    underGroup: 'dev',
+    blacklist: [
+        '.github'
+    ]
 }
 
 export default config
