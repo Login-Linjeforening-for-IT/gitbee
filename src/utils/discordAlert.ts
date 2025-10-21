@@ -1,8 +1,13 @@
 import config from '../constants.ts'
 
+type Data = {
+    content?: string
+    embeds: any[]
+}
+
 export default async function discordAlert(title: string, description: string, footer?: string) {
     try {
-        let data: { content?: string; embeds: any[] } = {
+        let data: Data = {
             embeds: [
                 {
                     title: title,
@@ -15,7 +20,7 @@ export default async function discordAlert(title: string, description: string, f
         }
 
         if (!config.url.webhook) {
-            throw new Error('Discord webhook URL is not defined');
+            throw new Error('Discord webhook URL is not defined')
         }
         
         const response = await fetch(config.url.webhook, {
