@@ -18,6 +18,8 @@ let lastUpdateGitlab = new Map<string, string>()
 //     ...
 // ]
 
+const clonesDir = '/projects'
+
 export default async function sync() {
     const github = await getAllRepositoriesFromGithub(config.name)
     const githubParsed = github.map((repo: GithubRepository) => ({ name: repo.name, updated: repo.pushed_at }))
@@ -31,36 +33,29 @@ export default async function sync() {
         return 'Failed to fetch repositories from Gitlab'
     }
 
+    await execAsync(`git config --global user.name "GitBee"`)
+    await execAsync(`git config --global user.email "sync@gitbee.local"`)
+
     console.log('Start Syncing repositories...')
 
     let hasUpdates = false
 
-    for (const repo of githubParsed) {
-        if (config.blacklist && config.blacklist.includes(repo.name)) {
-            console.log(`Skipping blacklisted repo ${repo.name} from github`)
-            continue
-        }
+    const githubNames = new Set(githubParsed.map(r => r.name))
+    const gitlabNames = new Set(gitlabParsed.map(r => r.name))
+    const commonNames = [...githubNames].filter(name => gitlabNames.has(name) && (!config.blacklist || !config.blacklist.includes(name)))
 
-        const last = lastUpdateGithub.get(repo.name)
-        if (!last || last !== repo.updated) {
-            console.log(`Updating ${repo.name} from github`)
-            await syncRepo(repo.name, 'github')
-            lastUpdateGithub.set(repo.name, repo.updated)
-            hasUpdates = true
-        }
-    }
+    for (const name of commonNames) {
+        const githubRepo = githubParsed.find(r => r.name === name)!
+        const gitlabRepo = gitlabParsed.find(r => r.name === name)!
 
-    for (const repo of gitlabParsed) {
-        if (config.blacklist && config.blacklist.includes(repo.name)) {
-            console.log(`Skipping blacklisted repo ${repo.name} from gitlab`)
-            continue
-        }
+        const lastGh = lastUpdateGithub.get(name)
+        const lastGl = lastUpdateGitlab.get(name)
 
-        const last = lastUpdateGitlab.get(repo.name)
-        if (!last || last !== repo.updated) {
-            console.log(`Updating ${repo.name} from gitlab`)
-            await syncRepo(repo.name, 'gitlab')
-            lastUpdateGitlab.set(repo.name, repo.updated)
+        if ((!lastGh || lastGh !== githubRepo.updated) || (!lastGl || lastGl !== gitlabRepo.updated)) {
+            console.log(`Updating ${name}`)
+            await syncRepo(name)
+            lastUpdateGithub.set(name, githubRepo.updated)
+            lastUpdateGitlab.set(name, gitlabRepo.updated)
             hasUpdates = true
         }
     }
@@ -68,19 +63,17 @@ export default async function sync() {
     return hasUpdates ? 'Sync completed' : 'No updates to sync'
 }
 
-async function syncRepo(repoName: string, source: 'github' | 'gitlab') {
-    const clonesDir = '/projects'
+async function syncRepo(repoName: string) {
     const repoPath = path.join(clonesDir, repoName)
     const githubUrl = `https://${config.tokens.github}@github.com/${config.name}/${repoName}.git`
     const gitlabUrl = `https://oauth2:${config.tokens.gitlab}@gitlab.login.no/${config.group}/${config.underGroup}/${repoName}.git`
 
-    // Clone repo if it doesn't exist
+
     if (!fs.existsSync(repoPath)) {
-        const cloneUrl = source === 'github' ? githubUrl : gitlabUrl
         try {
-            await execAsync(`git clone -o ${source} ${cloneUrl} ${repoPath}`)
+            await execAsync(`git clone -o github ${githubUrl} ${repoPath}`)
         } catch (error) {
-            console.error(`Failed to clone ${repoName} from ${source}:`, error)
+            console.error(`Failed to clone ${repoName} from github:`, error)
             return
         }
     }
@@ -95,15 +88,49 @@ async function syncRepo(repoName: string, source: 'github' | 'gitlab') {
     }
 
     try {
-        await execAsync(`git fetch github`, { cwd: repoPath })
         await execAsync(`git fetch gitlab`, { cwd: repoPath })
+    } catch (error) {
+        console.error(`Failed to fetch gitlab for ${repoName}:`, error)
+    }
 
+    const { stdout: gitlabRemotes } = await execAsync(`git branch -r | grep gitlab`, { cwd: repoPath })
+    const availableGitlabBranches = gitlabRemotes.split('\n').map(line => line.trim().replace('gitlab/', '')).filter(Boolean)
+
+    try {
+        const { stdout: branchesOutput } = await execAsync(`git ls-remote --heads github`, { cwd: repoPath })
+        const availableBranches = branchesOutput.split('\n').map(line => line.split('\t')[1]?.replace('refs/heads/', '')).filter(Boolean)
+        
         const branches = ['main', 'dev']
         for (const branch of branches) {
-            // Logic here
+            if (availableBranches.includes(branch)) {
+                await execAsync(`git checkout -B ${branch} github/${branch}`, { cwd: repoPath })
+                
+                await execAsync(`git pull --rebase github ${branch}`, { cwd: repoPath })
+                
+                if (availableGitlabBranches.includes(branch)) {
+                    try {
+                        await execAsync(`git pull --rebase gitlab ${branch}`, { cwd: repoPath })
+                    } catch (gitlabError) {
+                        const errorMessage = (gitlabError as Error).message
+                        if (errorMessage.includes("could not apply") || errorMessage.includes("Resolve all conflicts")) {
+                            try {
+                                await execAsync(`git rebase --abort`, { cwd: repoPath })
+                                console.warn(`Aborted rebase due to conflict for ${branch} in ${repoName}`)
+                            } catch (abortError) {
+                                console.warn(`Failed to abort rebase for ${repoName}:`, (abortError as Error).message)
+                                discordAlert('Sync conflict', `Failed to abort rebase for ${repoName} on branch ${branch}, please resolve manually.`)
+                            }
+                        }
+                        console.warn(`Failed to pull ${branch} from gitlab for ${repoName}:`, errorMessage)
+                        discordAlert('Sync conflict', `Sync conflict in ${repoName} on branch ${branch}, please resolve manually.`)
+                    }
+                } else {
+                    console.log(`Branch ${branch} not available on gitlab for ${repoName}, skipping pull.`)
+                }
+            }
         }
     } catch (error) {
-        console.error(`Failed to sync ${repoName} from ${source}:`, error)
-        discordAlert('Merge conflict', `Merge conflict in ${repoName} from ${source}, please resolve manually.`)
+        console.error(`Failed to sync ${repoName}:`, error)
+        discordAlert('Sync conflict', `Sync conflict in ${repoName}, please resolve manually.`)
     }
 }
