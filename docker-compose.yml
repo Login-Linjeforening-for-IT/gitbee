@@ -1,5 +1,6 @@
 services:
   gitbee:
+    restart: always
     container_name: gitbee
     build:
       context: .
