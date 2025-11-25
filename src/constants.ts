@@ -39,7 +39,10 @@ const config = {
     group: 'tekkom',
     underGroup: 'dev',
     blacklist: [
-        '.github'
+        '.github',
+        'internal-test-cluster',
+        'test-cluster',
+        'infra-prod-cluster'
     ]
 }
 
