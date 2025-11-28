@@ -116,8 +116,9 @@ async function syncRepo(repoName: string) {
                 }
             } else {
                 console.error(`Failed to sync ${branch} for ${repoName}:`, errorMessage)
+                discordAlert('Sync conflict', `Sync conflict in ${repoName} on branch ${branch}, please resolve manually.`)
             }
-            discordAlert('Sync conflict', `Sync conflict in ${repoName} on branch ${branch}, please resolve manually.`)
+            console.error(`Error syncing ${branch} for ${repoName}:`, error)
         }
     }
 }
