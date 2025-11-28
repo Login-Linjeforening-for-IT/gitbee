@@ -1,7 +1,8 @@
 services:
   gitbee:
-    restart: always
     container_name: gitbee
+    image: gitbee
+    restart: always
     build:
       context: .
       dockerfile: Dockerfile
