@@ -2,12 +2,24 @@ import { spawn } from 'child_process'
 
 export default function run(command: string, args: string[], cwd?: string) {
     return new Promise<void>((resolve, reject) => {
-        const child = spawn(command, args, { cwd, stdio: 'pipe' })
+        const child = spawn(command, args, {
+            cwd,
+            stdio: 'pipe'
+        })
 
-        child.on('error', reject)
-        child.on('close', (code) => {
-            if (code !== 0) reject(new Error(`${command} ${args.join(' ')} exited with code ${code}`))
-            else resolve()
+        child.stdout?.resume()
+        child.stderr?.resume()
+
+        child.once('error', reject)
+
+        child.once('exit', (code, signal) => {
+            if (signal) {
+                reject(new Error(`${command} killed by ${signal}`))
+            } else if (code !== 0) {
+                reject(new Error(`${command} exited with code ${code}`))
+            } else {
+                resolve()
+            }
         })
     })
 }
