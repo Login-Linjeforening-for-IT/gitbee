@@ -2,7 +2,7 @@ import { spawn } from 'child_process'
 
 export default function run(command: string, args: string[], cwd?: string) {
     return new Promise<void>((resolve, reject) => {
-        const child = spawn(command, args, { cwd, stdio: 'inherit' })
+        const child = spawn(command, args, { cwd, stdio: 'pipe' })
 
         child.on('error', reject)
         child.on('close', (code) => {
