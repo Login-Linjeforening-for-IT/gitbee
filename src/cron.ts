@@ -12,7 +12,8 @@ export default function gitSync() {
         isRunning = true
 
         try {
-            await sync()
+            const result = await sync()
+            console.log(result)
         } finally {
             isRunning = false
         }
