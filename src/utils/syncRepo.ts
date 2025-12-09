@@ -1,13 +1,9 @@
 
 import path from 'path'
 import discordAlert from './discordAlert.ts'
-import { exec } from 'child_process'
-import { promisify } from 'util'
 import config from '../constants.ts'
-import run from '../run.ts'
+import run, { runCapture } from '../run.ts'
 import fs from 'fs'
-
-const execAsync = promisify(exec)
 
 export default async function syncRepo(repoName: string) {
     const repoPath = path.join(config.clonesDir, repoName)
@@ -24,7 +20,7 @@ export default async function syncRepo(repoName: string) {
         }
     }
 
-    const { stdout: remotes } = await execAsync('git remote', { cwd: repoPath })
+    const remotes = await runCapture('git', ['remote'], repoPath)
     if (!remotes.includes('github')) {
         await run('git', ['remote', 'add', 'github', githubUrl], repoPath)
     }
@@ -33,10 +29,10 @@ export default async function syncRepo(repoName: string) {
         await run('git', ['remote', 'add', 'gitlab', gitlabUrl], repoPath)
     }
 
-    const { stdout: gitlabBranchesOutput } = await execAsync(`git ls-remote --heads gitlab`, { cwd: repoPath })
+    const gitlabBranchesOutput = await runCapture('git', ['ls-remote', '--heads', 'gitlab'], repoPath)
     const gitlabBranches = gitlabBranchesOutput.split('\n').map(line => line.split('\t')[1]?.replace('refs/heads/', '')).filter(Boolean)
-
-    const { stdout: branchesOutput } = await execAsync(`git ls-remote --heads github`, { cwd: repoPath })
+    
+    const branchesOutput = await runCapture('git', ['ls-remote', '--heads', 'github'], repoPath)
     const githubBranches = branchesOutput.split('\n').map(line => line.split('\t')[1]?.replace('refs/heads/', '')).filter(Boolean)
 
     const branches = ['main', 'dev']

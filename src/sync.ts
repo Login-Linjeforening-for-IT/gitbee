@@ -36,19 +36,19 @@ export default async function sync() {
 
     console.log('Start Syncing repositories...')
     let hasUpdates = false
-    
+
     const githubNames = new Set(githubParsed.map(r => r.name))
     const gitlabNames = new Set(gitlabParsed.map(r => r.name))
     const commonNames = [...githubNames]
-    .filter(name => gitlabNames.has(name) && (!config.blacklist || !config.blacklist.includes(name)))
-    
+        .filter(name => gitlabNames.has(name) && (!config.blacklist || !config.blacklist.includes(name)))
+
     for (const name of commonNames) {
         const githubRepo = githubParsed.find(r => r.name === name)!
         const gitlabRepo = gitlabParsed.find(r => r.name === name)!
-        
+
         const lastGh = lastUpdateGithub.get(name)
         const lastGl = lastUpdateGitlab.get(name)
-        
+
         if ((!lastGh || lastGh !== githubRepo.updated) || (!lastGl || lastGl !== gitlabRepo.updated)) {
             console.log(`Updating ${name}`)
             await syncRepo(name)
@@ -57,6 +57,6 @@ export default async function sync() {
             hasUpdates = true
         }
     }
-    
+
     return hasUpdates ? 'Sync completed' : 'No updates to sync'
 }
