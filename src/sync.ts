@@ -71,7 +71,8 @@ export default async function sync() {
 async function syncRepo(repoName: string) {
     const repoPath = path.join(clonesDir, repoName)
     const githubUrl = `https://${config.tokens.github}@github.com/${config.name}/${repoName}.git`
-    const gitlabUrl = `https://oauth2:${config.tokens.gitlab}@gitlab.login.no/${config.group}/${config.underGroup}/${repoName}.git`
+    const underGroup = repoName.includes('cluster') ? 'infrastructure/kubernetes' : config.underGroup
+    const gitlabUrl = `https://oauth2:${config.tokens.gitlab}@gitlab.login.no/${config.group}/${underGroup}/${repoName}.git`
 
     if (!fs.existsSync(repoPath)) {
         try {
