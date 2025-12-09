@@ -40,7 +40,8 @@ const config = {
     underGroup: 'dev',
     blacklist: [
         '.github'
-    ]
+    ],
+    clonesDir: '/projects'
 }
 
 export default config
