@@ -6,6 +6,7 @@ import path from 'path'
 import { exec } from 'child_process'
 import { promisify } from 'util'
 import discordAlert from './utils/discordAlert.ts'
+import run from './run.ts'
 
 const execAsync = promisify(exec)
 
@@ -37,8 +38,8 @@ export default async function sync() {
         return 'Failed to fetch repositories from Gitlab'
     }
 
-    await execAsync(`git config --global user.name "GitBee"`)
-    await execAsync(`git config --global user.email "sync@gitbee.local"`)
+    await run('git', ['config', '--global', 'user.name', 'GitBee'])
+    await run('git', ['config', '--global', 'user.email', 'sync@gitbee.local'])
 
     console.log('Start Syncing repositories...')
 
@@ -74,7 +75,7 @@ async function syncRepo(repoName: string) {
 
     if (!fs.existsSync(repoPath)) {
         try {
-            await execAsync(`git clone -o github ${githubUrl} ${repoPath}`)
+            await run('git', ['clone', '-o', 'github', githubUrl, repoPath])
         } catch (error) {
             console.error(`Failed to clone ${repoName} from github:`, error)
             return
@@ -83,10 +84,11 @@ async function syncRepo(repoName: string) {
 
     const { stdout: remotes } = await execAsync('git remote', { cwd: repoPath })
     if (!remotes.includes('github')) {
-        await execAsync(`git remote add github ${githubUrl}`, { cwd: repoPath })
+        await run('git', ['remote', 'add', 'github', githubUrl], repoPath)
     }
+
     if (!remotes.includes('gitlab')) {
-        await execAsync(`git remote add gitlab ${gitlabUrl}`, { cwd: repoPath })
+        await run('git', ['remote', 'add', 'gitlab', gitlabUrl], repoPath)
     }
 
     const { stdout: gitlabBranchesOutput } = await execAsync(`git ls-remote --heads gitlab`, { cwd: repoPath })
@@ -99,16 +101,17 @@ async function syncRepo(repoName: string) {
     for (const branch of branches) {
         if (!githubBranches.includes(branch) || !gitlabBranches.includes(branch)) continue
         try {
-            await execAsync(`git checkout -B ${branch} github/${branch}`, { cwd: repoPath })
-            await execAsync(`git pull --rebase github ${branch}`, { cwd: repoPath })
-            await execAsync(`git pull --rebase gitlab ${branch}`, { cwd: repoPath })
-            await execAsync(`git push gitlab ${branch}`, { cwd: repoPath })
-            await execAsync(`git push github ${branch}`, { cwd: repoPath })
+            await run('git', ['checkout', '-B', branch, `github/${branch}`], repoPath)
+            await run('git', ['pull', '--rebase', 'github', branch], repoPath)
+            await run('git', ['pull', '--rebase', 'gitlab', branch], repoPath)
+            await run('git', ['push', 'gitlab', branch], repoPath)
+            await run('git', ['push', 'github', branch], repoPath)
         } catch (error) {
             const errorMessage = (error as Error).message
+
             if (errorMessage.includes("could not apply") || errorMessage.includes("Resolve all conflicts")) {
                 try {
-                    await execAsync(`git rebase --abort`, { cwd: repoPath })
+                    await run('git', ['rebase', '--abort'], repoPath)
                     console.warn(`Aborted rebase due to conflict for ${branch} in ${repoName}`)
                 } catch (abortError) {
                     console.warn(`Failed to abort rebase for ${repoName}:`, (abortError as Error).message)
@@ -118,6 +121,7 @@ async function syncRepo(repoName: string) {
                 console.error(`Failed to sync ${branch} for ${repoName}:`, errorMessage)
                 discordAlert('Sync conflict', `Sync conflict in ${repoName} on branch ${branch}, please resolve manually.`)
             }
+
             console.error(`Error syncing ${branch} for ${repoName}:`, error)
         }
     }
