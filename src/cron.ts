@@ -3,7 +3,7 @@ import sync from './sync.ts'
 let isRunning = false
 
 export default function gitSync() {
-    setTimeout(async() => {
+    setInterval(async() => {
         if (isRunning) {
             console.log('Sync already running, skipping...')
             return
